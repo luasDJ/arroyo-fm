@@ -4,12 +4,14 @@
 - Página pública con diseño oscuro moderno.
 - Reproductor Caster.fm usando el código facilitado.
 - Selector de GoCast mediante URL externa o iframe.
-- Panel de demostración que guarda la configuración en `localStorage`.
+- Panel sin login que lee y guarda la configuración en Supabase.
 
 ## Importante
-Esta versión es un prototipo estático. La contraseña está dentro del JavaScript y no ofrece seguridad real. Además, los cambios se guardan solo en el navegador donde se realizan.
+La clave incluida en `app.js` y `admin.js` es la Publishable key de Supabase y puede estar en el navegador. Nunca debe sustituirse por una `SUPABASE_SECRET_KEY`.
 
-Para que el cambio de reproductor se aplique a todos los oyentes, hay que conectar el panel a un backend/autenticación, por ejemplo Supabase o Firebase, y proteger las credenciales mediante reglas de seguridad.
+El panel no tiene autenticación en esta versión. Por ello, una política RLS que permita `UPDATE` anónimo sobre `public.radio_config` deja que cualquier persona que conozca el panel pueda cambiar la emisión. Para un entorno real, usa autenticación de administrador o una función/endpoint server-side que valide la operación. La lectura pública debe permanecer permitida con la Publishable key.
+
+La tabla `public.radio_config` debe tener una fila con `id = 1` y las columnas `mode`, `gocast_url`, `gocast_type` y `updated_at`. Los valores esperados son `caster`/`gocast` y `link`/`iframe`.
 
 ## Publicar en GitHub Pages
 1. Crea un repositorio en GitHub.

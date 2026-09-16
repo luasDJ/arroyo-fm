@@ -30,7 +30,8 @@ async function getConfig() {
         headers: {
           apikey: SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
-        }
+        },
+        cache: "no-store"
       }
     );
 
@@ -43,9 +44,9 @@ async function getConfig() {
     if (!data.length) return DEFAULTS;
 
     return {
-      mode: data[0].mode || DEFAULTS.mode,
+      mode: data[0].mode === "gocast" ? "gocast" : DEFAULTS.mode,
       gocastUrl: data[0].gocast_url || "",
-      gocastType: data[0].gocast_type || DEFAULTS.gocastType
+      gocastType: data[0].gocast_type === "iframe" ? "iframe" : DEFAULTS.gocastType
     };
   } catch (error) {
     console.error(error);

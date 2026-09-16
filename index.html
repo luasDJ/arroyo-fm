@@ -4,39 +4,61 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Arroyo FM | Radio online</title>
+  <meta name="description" content="Arroyo FM, tu radio online de Arroyomolinos. Escucha nuestra programación estés donde estés.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="site-header">
-    <div class="brand">
+    <a class="brand" href="index.html" aria-label="Arroyo FM, inicio">
       <img class="brand-logo" src="logo.png" alt="Logo de Arroyo FM">
       <div>
         <h1>Arroyo FM</h1>
         <p>Tu radio, tu compañía</p>
       </div>
-    </div>
-    <a class="admin-link" href="admin.html">Panel admin</a>
+    </a>
+    <a class="admin-link" href="admin.html">Panel de emisión <span aria-hidden="true">↗</span></a>
   </header>
 
-  <main class="hero">
-    <section class="hero-copy">
-      <span class="eyebrow">RADIO ONLINE</span>
-      <h2>Escucha Arroyo FM estés donde estés.</h2>
-      <p>Disfruta de nuestra programación en directo y del AutoDJ cuando estamos fuera de emisión.</p>
+  <main>
+    <section class="hero page-section">
+      <div class="hero-copy">
+        <span class="eyebrow"><span class="live-dot"></span> RADIO ONLINE · MADRID</span>
+        <h2>La banda sonora<br><em>de tu día.</em></h2>
+        <p>Escucha Arroyo FM estés donde estés. Música, compañía y toda la energía de Arroyomolinos.</p>
+        <a class="primary-button" href="#player">Escuchar ahora <span aria-hidden="true">▶</span></a>
+      </div>
+      <div class="hero-signal" aria-hidden="true">
+        <div class="signal-ring signal-ring-large"></div>
+        <div class="signal-ring signal-ring-small"></div>
+        <span class="signal-mark">AFM</span>
+      </div>
     </section>
 
-    <section class="player-card">
-      <div class="player-topline">
-        <span id="modeBadge" class="status-badge">DIRECTO</span>
-        <span id="modeLabel" class="muted">Caster.fm</span>
+    <section class="player-section page-section" id="player" aria-labelledby="player-title">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">EN ANTENA</span>
+          <h2 id="player-title">Arroyo FM en directo</h2>
+        </div>
+        <p>Conecta con nosotros desde cualquier lugar.</p>
       </div>
-      <div id="playerContainer" class="player-container"></div>
-      <p id="playerHint" class="player-hint">Reproductor de Arroyo FM</p>
+      <div class="player-card">
+        <div class="player-topline">
+          <span id="modeBadge" class="status-badge"><span class="live-dot"></span> DIRECTO</span>
+          <span id="modeLabel" class="muted">Caster.fm</span>
+        </div>
+        <div id="playerContainer" class="player-container"></div>
+        <p id="playerHint" class="player-hint">Reproductor de Arroyo FM</p>
+      </div>
     </section>
   </main>
 
-  <footer>
-    <p>© <span id="year"></span> Arroyo FM</p>
+  <footer class="site-footer">
+    <div class="footer-brand"><strong>ARROYO FM</strong><span>Arroyomolinos · Madrid</span></div>
+    <p>Tu radio, tu compañía · © <span id="year"></span></p>
   </footer>
 
   <script src="app.js"></script>

@@ -8,61 +8,9 @@
   <title>Panel | Arroyo FM</title>
 
   <link rel="stylesheet" href="styles.css">
-
-  <style>
-    .admin-wrap {
-      width: min(620px, calc(100% - 36px));
-      margin: 50px auto;
-    }
-
-    .admin-panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 28px;
-    }
-
-    label {
-      display: block;
-      margin: 18px 0 8px;
-      font-size: .9rem;
-    }
-
-    input, select {
-      width: 100%;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: #080b12;
-      color: var(--text);
-      box-sizing: border-box;
-    }
-
-    button {
-      margin-top: 22px;
-      padding: 12px 16px;
-      border: 0;
-      border-radius: 999px;
-      background: var(--accent);
-      color: white;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .notice {
-      color: var(--muted);
-      font-size: .85rem;
-      line-height: 1.6;
-    }
-
-    .admin-link {
-      display: inline-block;
-      margin: 20px 0;
-    }
-  </style>
 </head>
 
-<body>
+<body class="admin-page">
   <main class="admin-wrap">
 
     <div class="admin-brand">
@@ -73,11 +21,12 @@
       >
     </div>
 
-    <a class="admin-link" href="index.html">
-      ← Volver a la web
+    <a class="back-link" href="index.html">
+      ← Volver a la web pública
     </a>
 
-    <h2>Panel de Arroyo FM</h2>
+    <h2>Panel de emisión</h2>
+    <p class="admin-intro">Controla qué señal escucha tu audiencia en Arroyo FM.</p>
 
     <section class="admin-panel">
       <h3>Configuración del reproductor</h3>
@@ -86,29 +35,29 @@
         Elige qué reproductor quieres mostrar en la web.
       </p>
 
-      <label for="mode">Fuente activa</label>
+      <div class="form-field">
+        <label for="mode">Fuente activa</label>
 
-      <select id="mode">
-        <option value="caster">Caster.fm — Directo</option>
-        <option value="gocast">GoCast — AutoDJ</option>
-      </select>
+        <select id="mode">
+          <option value="caster">Caster.fm — Directo</option>
+          <option value="gocast">GoCast — AutoDJ</option>
+        </select>
+      </div>
 
-      <label for="gocastUrl">
-        URL de GoCast o del reproductor alternativo
-      </label>
+      <div class="form-field">
+        <label for="gocastUrl">URL de GoCast o del reproductor alternativo</label>
 
-      <input
-        id="gocastUrl"
-        type="url"
-        placeholder="https://ejemplo.com/reproductor"
-      >
+        <input id="gocastUrl" type="url" placeholder="https://ejemplo.com/reproductor">
+      </div>
 
-      <label for="gocastType">Tipo de integración</label>
+      <div class="form-field">
+        <label for="gocastType">Tipo de integración</label>
 
-      <select id="gocastType">
-        <option value="link">Enlace externo</option>
-        <option value="iframe">Iframe</option>
-      </select>
+        <select id="gocastType">
+          <option value="link">Enlace externo</option>
+          <option value="iframe">Iframe</option>
+        </select>
+      </div>
 
       <button id="saveBtn">
         Guardar configuración
