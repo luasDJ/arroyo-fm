@@ -66,9 +66,15 @@ async function renderPlayer() {
 
   if (!container) return;
 
-  if (config.mode === "gocast" && config.gocastUrl) {
+  if (config.mode === "gocast") {
     badge.textContent = "AUTODJ";
     label.textContent = "GoCast";
+
+    if (!config.gocastUrl) {
+      hint.textContent = "Configura una URL de GoCast desde el panel de emisión.";
+      container.innerHTML = "<p class=\"muted\">No hay una URL de GoCast configurada.</p>";
+      return;
+    }
 
     hint.textContent = config.gocastType === "iframe"
       ? "AutoDJ de GoCast"

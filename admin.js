@@ -3,8 +3,8 @@ const SUPABASE_URL = "https://gixdaycfpnijlvlzfvny.supabase.co";
 
 const SUPABASE_PUBLISHABLE_KEY =
   "sb_publishable_h2CWl2ydWgI3safRUcYmxg_ffIDzs3h";
-const ADMIN_ACCESS_CODE = "arroyo-fm";
-const ACCESS_SESSION_KEY = "arroyo-fm-admin-access";
+const ADMIN_ACCESS_CODE = "1234567";
+const ACCESS_SESSION_KEY = "arroyo-fm-admin-access-v2";
 
 const $ = (selector) => document.querySelector(selector);
 const accessPanel = $("#accessPanel");
@@ -115,6 +115,7 @@ saveButton.addEventListener("click", async () => {
         method: "PATCH",
         headers: {
           apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
           "Content-Type": "application/json",
           Prefer: "return=minimal"
         },

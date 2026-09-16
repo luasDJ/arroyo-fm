@@ -9,7 +9,7 @@
 ## Importante
 La clave incluida en `app.js` y `admin.js` es la Publishable key de Supabase y puede estar en el navegador. Nunca debe sustituirse por una `SUPABASE_SECRET_KEY`.
 
-El panel incluye un código básico de acceso inicial: `arroyo-fm`. Este código está en `admin.js`, por lo que no es una medida de seguridad real en GitHub Pages; para producción debe sustituirse por autenticación de Supabase o un backend.
+El panel incluye un código básico de acceso: `1234567`. Este código está en `admin.js`, por lo que no es una medida de seguridad real en GitHub Pages; para producción debe sustituirse por autenticación de Supabase o un backend.
 
 El panel no tiene autenticación en esta versión. Por ello, una política RLS que permita `UPDATE` anónimo sobre `public.radio_config` deja que cualquier persona que conozca el panel pueda cambiar la emisión. Para un entorno real, usa autenticación de administrador o una función/endpoint server-side que valide la operación. La lectura pública debe permanecer permitida con la Publishable key.
 
