@@ -1,3 +1,9 @@
+
+const SUPABASE_URL = "https://gixdaycfpnijlvlzfvny.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY =
+  "sb_publishable_h2CWl2ydWgI3safRUcYmxg_ffIDzs3h";
+
 const DEFAULTS = {
   mode: "caster",
   gocastUrl: "",
@@ -13,21 +19,43 @@ const casterEmbed = `
      data-rendered="false"
      class="cstrEmbed">
   <a href="https://www.caster.fm">Shoutcast Hosting</a>
-  <a href="https://www.caster.fm">Stream Hosting</a>
-  <a href="https://www.caster.fm">Radio Server Hosting</a>
 </div>
-<script src="https://cdn.cloud.caster.fm//widgets/embed.js"><\/script>`;
+`;
 
-function getConfig() {
+async function getConfig() {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem("arroyoFmConfig") || "{}") };
-  } catch {
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/radio_config?select=mode,gocast_url,gocast_type&limit=1`,
+      {
+        headers: {
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("No se pudo consultar Supabase");
+    }
+
+    const data = await response.json();
+
+    if (!data.length) return DEFAULTS;
+
+    return {
+      mode: data[0].mode || DEFAULTS.mode,
+      gocastUrl: data[0].gocast_url || "",
+      gocastType: data[0].gocast_type || DEFAULTS.gocastType
+    };
+  } catch (error) {
+    console.error(error);
     return DEFAULTS;
   }
 }
 
-function renderPlayer() {
-  const config = getConfig();
+async function renderPlayer() {
+  const config = await getConfig();
+
   const container = document.querySelector("#playerContainer");
   const badge = document.querySelector("#modeBadge");
   const label = document.querySelector("#modeLabel");
@@ -38,19 +66,36 @@ function renderPlayer() {
   if (config.mode === "gocast" && config.gocastUrl) {
     badge.textContent = "AUTODJ";
     label.textContent = "GoCast";
+
     hint.textContent = config.gocastType === "iframe"
       ? "AutoDJ de GoCast"
       : "Abre el reproductor alternativo de GoCast";
+
     if (config.gocastType === "iframe") {
-      container.innerHTML = `<iframe src="${escapeAttr(config.gocastUrl)}" title="GoCast AutoDJ" allow="autoplay"></iframe>`;
+      container.innerHTML = `
+        <iframe
+          src="${escapeAttr(config.gocastUrl)}"
+          title="GoCast AutoDJ"
+          allow="autoplay"
+          style="width:100%; min-height:180px; border:0;">
+        </iframe>`;
     } else {
-      container.innerHTML = `<a class="external-player" target="_blank" rel="noopener" href="${escapeAttr(config.gocastUrl)}">Abrir GoCast AutoDJ</a>`;
+      container.innerHTML = `
+        <a
+          class="external-player"
+          target="_blank"
+          rel="noopener"
+          href="${escapeAttr(config.gocastUrl)}">
+          Abrir GoCast AutoDJ
+        </a>`;
     }
   } else {
     badge.textContent = "DIRECTO";
     label.textContent = "Caster.fm";
     hint.textContent = "Reproductor de Arroyo FM";
+
     container.innerHTML = casterEmbed;
+
     const script = document.createElement("script");
     script.src = "https://cdn.cloud.caster.fm//widgets/embed.js";
     container.appendChild(script);
@@ -58,9 +103,17 @@ function renderPlayer() {
 }
 
 function escapeAttr(value) {
-  return String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
-document.querySelector("#year").textContent = new Date().getFullYear();
+const year = document.querySelector("#year");
+
+if (year) {
+  year.textContent = new Date().getFullYear();
+}
+
 renderPlayer();
