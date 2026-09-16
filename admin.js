@@ -6,68 +6,22 @@ const SUPABASE_PUBLISHABLE_KEY =
 
 const $ = (selector) => document.querySelector(selector);
 
-let accessToken = null;
-
-async function supabaseRequest(path, options = {}) {
-  return fetch(`${SUPABASE_URL}${path}`, {
-    ...options,
-    headers: {
-      apikey: SUPABASE_PUBLISHABLE_KEY,
-      Authorization: `Bearer ${accessToken || SUPABASE_PUBLISHABLE_KEY}`,
-      "Content-Type": "application/json",
-      ...options.headers
-    }
-  });
-}
-
-// Iniciar sesión
-$("#loginBtn").addEventListener("click", async () => {
-  const email = $("#email").value.trim();
-  const password = $("#password").value;
-
-  $("#loginError").textContent = "Iniciando sesión...";
-
-  try {
-    const response = await fetch(
-      `${SUPABASE_URL}/auth/v1/token?grant_type=password`,
-      {
-        method: "POST",
-        headers: {
-          apikey: SUPABASE_PUBLISHABLE_KEY,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ email, password })
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error_description || "No se pudo iniciar sesión");
-    }
-
-    accessToken = data.access_token;
-
-    $("#loginBox").classList.add("hidden");
-    $("#settingsBox").classList.remove("hidden");
-    $("#loginError").textContent = "";
-
-    await loadSettings();
-  } catch (error) {
-    $("#loginError").textContent = error.message;
-  }
-});
-
-// Cargar configuración
+// Cargar configuración actual
 async function loadSettings() {
-  const response = await supabaseRequest(
-    "/rest/v1/radio_config?select=mode,gocast_url,gocast_type&limit=1"
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/radio_config?select=mode,gocast_url,gocast_type&limit=1`,
+    {
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY
+      }
+    }
   );
 
   const data = await response.json();
 
   if (!response.ok || !data.length) {
-    $("#saveMessage").textContent = "No se pudo cargar la configuración.";
+    $("#saveMessage").textContent =
+      "No se pudo cargar la configuración.";
     return;
   }
 
@@ -76,7 +30,13 @@ async function loadSettings() {
   $("#gocastType").value = data[0].gocast_type || "link";
 }
 
-// Guardar configuración
+// Mostrar directamente el panel, sin login
+$("#loginBox").classList.add("hidden");
+$("#settingsBox").classList.remove("hidden");
+
+loadSettings();
+
+// Guardar configuración en Supabase
 $("#saveBtn").addEventListener("click", async () => {
   const config = {
     mode: $("#mode").value,
@@ -88,11 +48,13 @@ $("#saveBtn").addEventListener("click", async () => {
   $("#saveMessage").textContent = "Guardando...";
 
   try {
-    const response = await supabaseRequest(
-      "/rest/v1/radio_config?id=eq.1",
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/radio_config?id=eq.1`,
       {
         method: "PATCH",
         headers: {
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          "Content-Type": "application/json",
           Prefer: "return=minimal"
         },
         body: JSON.stringify(config)
@@ -100,27 +62,21 @@ $("#saveBtn").addEventListener("click", async () => {
     );
 
     if (!response.ok) {
-      throw new Error("No se pudo guardar la configuración.");
+      throw new Error("Error al guardar en Supabase");
     }
 
     $("#saveMessage").textContent =
-      "✅ Configuración guardada para todos los visitantes.";
+      "✅ Guardado. El cambio se aplicará a todos los visitantes.";
   } catch (error) {
-    $("#saveMessage").textContent = `❌ ${error.message}`;
+    console.error(error);
+    $("#saveMessage").textContent =
+      "❌ No se pudo guardar la configuración.";
   }
 });
 
-// Cerrar sesión
-$("#logoutBtn").addEventListener("click", async () => {
-  if (accessToken) {
-    await supabaseRequest("/auth/v1/logout", {
-      method: "POST"
-    });
-  }
+// Ocultar el botón de cerrar sesión
+const logoutButton = $("#logoutBtn");
 
-  accessToken = null;
-
-  $("#settingsBox").classList.add("hidden");
-  $("#loginBox").classList.remove("hidden");
-  $("#password").value = "";
-});
+if (logoutButton) {
+  logoutButton.style.display = "none";
+}
