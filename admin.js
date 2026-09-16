@@ -4,7 +4,6 @@ const SUPABASE_URL = "https://gixdaycfpnijlvlzfvny.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY =
   "sb_publishable_h2CWl2ydWgI3safRUcYmxg_ffIDzs3h";
 const ADMIN_ACCESS_CODE = "1234567";
-const ACCESS_SESSION_KEY = "arroyo-fm-admin-access-v2";
 
 const $ = (selector) => document.querySelector(selector);
 const accessPanel = $("#accessPanel");
@@ -30,15 +29,10 @@ function openSettings() {
   loadSettings();
 }
 
-if (sessionStorage.getItem(ACCESS_SESSION_KEY) === "granted") {
-  openSettings();
-}
-
 accessForm.addEventListener("submit", (event) => {
   event.preventDefault();
 
   if (accessCodeInput.value === ADMIN_ACCESS_CODE) {
-    sessionStorage.setItem(ACCESS_SESSION_KEY, "granted");
     accessMessage.textContent = "";
     openSettings();
     return;
