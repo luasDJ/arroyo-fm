@@ -1,4 +1,4 @@
-const DEMO_PASSWORD = "cambia-esta-clave";
+const DEMO_PASSWORD = "1234567";
 const configKey = "arroyoFmConfig";
 
 const $ = (selector) => document.querySelector(selector);
