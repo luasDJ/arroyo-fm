@@ -3,8 +3,15 @@ const SUPABASE_URL = "https://gixdaycfpnijlvlzfvny.supabase.co";
 
 const SUPABASE_PUBLISHABLE_KEY =
   "sb_publishable_h2CWl2ydWgI3safRUcYmxg_ffIDzs3h";
+const ADMIN_ACCESS_CODE = "arroyo-fm";
+const ACCESS_SESSION_KEY = "arroyo-fm-admin-access";
 
 const $ = (selector) => document.querySelector(selector);
+const accessPanel = $("#accessPanel");
+const settingsPanel = $("#settingsPanel");
+const accessForm = $("#accessForm");
+const accessCodeInput = $("#accessCode");
+const accessMessage = $("#accessMessage");
 const modeInput = $("#mode");
 const urlInput = $("#gocastUrl");
 const typeInput = $("#gocastType");
@@ -15,6 +22,32 @@ function showMessage(text, type = "") {
   message.textContent = text;
   message.className = `notice ${type}`.trim();
 }
+
+function openSettings() {
+  accessPanel.classList.add("hidden");
+  settingsPanel.classList.remove("hidden");
+  settingsPanel.setAttribute("aria-hidden", "false");
+  loadSettings();
+}
+
+if (sessionStorage.getItem(ACCESS_SESSION_KEY) === "granted") {
+  openSettings();
+}
+
+accessForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+
+  if (accessCodeInput.value === ADMIN_ACCESS_CODE) {
+    sessionStorage.setItem(ACCESS_SESSION_KEY, "granted");
+    accessMessage.textContent = "";
+    openSettings();
+    return;
+  }
+
+  accessMessage.textContent = "Código incorrecto.";
+  accessMessage.className = "notice error";
+  accessCodeInput.select();
+});
 
 // Cargar configuración actual
 async function loadSettings() {
@@ -44,8 +77,6 @@ async function loadSettings() {
     showMessage("No se pudo cargar la configuración.", "error");
   }
 }
-
-loadSettings();
 
 // Guardar configuración en Supabase
 saveButton.addEventListener("click", async () => {

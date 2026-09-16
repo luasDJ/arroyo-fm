@@ -28,7 +28,20 @@
     <h2>Panel de emisión</h2>
     <p class="admin-intro">Controla qué señal escucha tu audiencia en Arroyo FM.</p>
 
-    <section class="admin-panel">
+    <section id="accessPanel" class="admin-panel access-panel">
+      <h3>Acceso restringido</h3>
+      <p class="notice">Introduce el código para abrir la configuración de emisión.</p>
+      <form id="accessForm">
+        <div class="form-field">
+          <label for="accessCode">Código de acceso</label>
+          <input id="accessCode" type="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit">Acceder al panel</button>
+      </form>
+      <p id="accessMessage" class="notice"></p>
+    </section>
+
+    <section id="settingsPanel" class="admin-panel hidden" aria-hidden="true">
       <h3>Configuración del reproductor</h3>
 
       <p class="notice">

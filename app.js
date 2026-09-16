@@ -13,12 +13,14 @@ const DEFAULTS = {
 const casterEmbed = `
 <div data-type="newStreamPlayer"
      data-publicToken="ae702e4c-24d7-4f04-84eb-eae2b97663ed"
-     data-theme="dark"
-     data-color="0084FF"
-     data-channelId="a2c0abdf-020d-4d8a-8181-ba0cb61e864b"
+     data-theme="light"
+     data-color="e81e4d"
+     data-channelId=""
      data-rendered="false"
      class="cstrEmbed">
   <a href="https://www.caster.fm">Shoutcast Hosting</a>
+  <a href="https://www.caster.fm">Stream Hosting</a>
+  <a href="https://www.caster.fm">Radio Server Hosting</a>
 </div>
 `;
 
