@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin | Arroyo FM</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .admin-wrap { width: min(620px, calc(100% - 36px)); margin: 70px auto; }
+    .admin-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 24px; padding: 28px; }
+    label { display:block; margin: 18px 0 8px; font-size: .9rem; }
+    input, select { width:100%; padding: 12px; border-radius: 10px; border:1px solid var(--border); background:#080b12; color:var(--text); }
+    button { margin-top: 22px; padding: 12px 16px; border:0; border-radius: 999px; background:var(--accent); color:white; font-weight:700; cursor:pointer; }
+    .notice { color:var(--muted); font-size:.85rem; line-height:1.6; }
+    .error { color:#fca5a5; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <main class="admin-wrap"><div class="admin-brand"><img class="brand-logo admin-logo" src="logo.png" alt="Logo de Arroyo FM"></div>
+    <a class="admin-link" href="index.html">← Volver a la web</a>
+    <h2>Panel de Arroyo FM</h2>
+    <section class="admin-panel">
+      <div id="loginBox">
+        <h3>Acceso de administrador</h3>
+        <p class="notice">Esta versión es una demostración local. La contraseña se comprueba en el navegador y no protege una administración real.</p>
+        <label for="password">Contraseña de demostración</label>
+        <input id="password" type="password" autocomplete="current-password">
+        <button id="loginBtn">Entrar</button>
+        <p id="loginError" class="error"></p>
+      </div>
+
+      <div id="settingsBox" class="hidden">
+        <h3>Configuración del reproductor</h3>
+        <label for="mode">Fuente activa</label>
+        <select id="mode">
+          <option value="caster">Caster.fm — Directo</option>
+          <option value="gocast">GoCast — AutoDJ</option>
+        </select>
+
+        <label for="gocastUrl">URL de GoCast o de la web alternativa</label>
+        <input id="gocastUrl" type="url" placeholder="https://ejemplo.com/reproductor">
+
+        <label for="gocastType">Tipo de integración</label>
+        <select id="gocastType">
+          <option value="link">Enlace externo</option>
+          <option value="iframe">Iframe (solo si GoCast lo permite)</option>
+        </select>
+
+        <button id="saveBtn">Guardar configuración en este navegador</button>
+        <button id="logoutBtn" style="background:#334155">Cerrar sesión</button>
+        <p id="saveMessage" class="notice"></p>
+      </div>
+    </section>
+  </main>
+  <script src="admin.js"></script>
+</body>
+</html>
