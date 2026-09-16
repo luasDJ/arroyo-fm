@@ -34,7 +34,7 @@
       <form id="accessForm">
         <div class="form-field">
           <label for="accessCode">Código de acceso</label>
-          <input id="accessCode" type="password" autocomplete="current-password" required>
+          <input id="accessCode" type="password" inputmode="numeric" pattern="[0-9]{7}" maxlength="7" autocomplete="off" required>
         </div>
         <button type="submit">Acceder al panel</button>
       </form>

@@ -32,7 +32,7 @@ function openSettings() {
 accessForm.addEventListener("submit", (event) => {
   event.preventDefault();
 
-  if (accessCodeInput.value === ADMIN_ACCESS_CODE) {
+  if (accessCodeInput.value.trim() === ADMIN_ACCESS_CODE) {
     accessMessage.textContent = "";
     openSettings();
     return;
