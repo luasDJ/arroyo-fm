@@ -113,6 +113,55 @@ async function fetchRemoteCollection(tableName, fallback) {
   return data;
 }
 
+async function loadOrMigrateCollection(tableName, storageKey) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return readStoredCollection(storageKey, []);
+  }
+
+  const { data, error } = await supabase.from(tableName).select("*");
+
+  if (error || !Array.isArray(data) || data.length) {
+    return Array.isArray(data) ? data : [];
+  }
+
+  const localItems = readStoredCollection(storageKey, []);
+  const itemsToMigrate = Array.isArray(localItems)
+    ? localItems
+      .filter((item) => item && !String(item.id || "").startsWith("default-"))
+      .map((item) => tableName === "radio_events"
+        ? {
+            title: item.title,
+            date: item.date,
+            description: item.description || "",
+            created_at: item.created_at || new Date().toISOString()
+          }
+        : {
+            title: item.title,
+            text: item.text,
+            created_at: item.created_at || new Date().toISOString()
+          })
+    : [];
+
+  if (!itemsToMigrate.length) {
+    return data;
+  }
+
+  const { data: migratedItems, error: migrationError } = await supabase
+    .from(tableName)
+    .insert(itemsToMigrate)
+    .select();
+
+  if (migrationError || !Array.isArray(migratedItems)) {
+    console.warn(`No se pudo migrar el contenido local de ${tableName}:`, migrationError);
+    return data;
+  }
+
+  persistCollection(storageKey, migratedItems);
+  return migratedItems;
+}
+
 function persistCollection(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
@@ -183,13 +232,8 @@ function renderAdminAnnouncements(announcements = readStoredCollection(STORAGE_K
 }
 
 async function loadStoredContent() {
-  const events = isSupabaseConfigured()
-    ? await fetchRemoteCollection("radio_events", DEFAULT_EVENTS)
-    : readStoredCollection(STORAGE_KEYS.events, DEFAULT_EVENTS);
-
-  const announcements = isSupabaseConfigured()
-    ? await fetchRemoteCollection("radio_announcements", DEFAULT_ANNOUNCEMENTS)
-    : readStoredCollection(STORAGE_KEYS.announcements, DEFAULT_ANNOUNCEMENTS);
+  const events = await loadOrMigrateCollection("radio_events", STORAGE_KEYS.events);
+  const announcements = await loadOrMigrateCollection("radio_announcements", STORAGE_KEYS.announcements);
 
   renderAdminEvents(events);
   renderAdminAnnouncements(announcements);
