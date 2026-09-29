@@ -6,21 +6,16 @@
 - Selector de GoCast mediante URL externa o iframe.
 - Panel sin login que lee y guarda la configuración en Supabase.
 
-## Importante
-La clave incluida en `app.js` y `admin.js` es la Publishable key de Supabase y puede estar en el navegador. Nunca debe sustituirse por una `SUPABASE_SECRET_KEY`.
+## Publicación y Supabase
+1. Ejecuta `supabase.sql` en el SQL Editor de tu proyecto Supabase.
+2. Publica los archivos de este repositorio desde la raíz en GitHub Pages.
+3. Configura la URL del proyecto y su Publishable key en los bloques de configuración de `index.html` y `admin.html`.
 
+La Publishable key está diseñada para uso en el navegador. Nunca la sustituyas por una `SUPABASE_SECRET_KEY` ni publiques el archivo `.env`. Anuncios y eventos empiezan vacíos y se leen desde Supabase, por lo que se comparten entre navegadores.
+
+## Seguridad
 El panel solicita el código `1234567` cada vez que se abre. Este código está en `admin.js`, por lo que no es una medida de seguridad real en GitHub Pages; para producción debe sustituirse por autenticación de Supabase o un backend.
 
-El panel no tiene autenticación en esta versión. Por ello, una política RLS que permita `UPDATE` anónimo sobre `public.radio_config` deja que cualquier persona que conozca el panel pueda cambiar la emisión. Para un entorno real, usa autenticación de administrador o una función/endpoint server-side que valide la operación. La lectura pública debe permanecer permitida con la Publishable key.
+El SQL de esta versión permite lectura y escritura anónimas para que el panel estático funcione. Cualquier persona puede cambiar la emisión o publicar/eliminar contenido aunque el panel pida un código. Para producción, protege las escrituras con autenticación de administrador y políticas RLS; conserva la lectura pública con la Publishable key.
 
-La tabla `public.radio_config` debe tener una fila con `id = 1` y las columnas `mode`, `gocast_url`, `gocast_type` y `updated_at`. Los valores esperados son `caster`/`gocast` y `link`/`iframe`.
-
-## Publicar en GitHub Pages
-1. Crea un repositorio en GitHub.
-2. Sube todos los archivos de esta carpeta a la rama principal.
-3. Ve a Settings > Pages.
-4. Selecciona Deploy from a branch.
-5. Elige la rama principal y la carpeta `/root`.
-6. Guarda y abre la URL que GitHub Pages te indique.
-
-- `logo.png` — Logo proporcionado para Arroyo FM.
+El SQL crea una fila de configuración inicial con el reproductor Caster.fm. Los eventos y anuncios no contienen datos de demostración.

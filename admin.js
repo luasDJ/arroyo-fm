@@ -1,37 +1,35 @@
 
-const SUPABASE_URL = "https://gixdaycfpnijlvlzfvny.supabase.co";
-
-const SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_h2CWl2ydWgI3safRUcYmxg_ffIDzs3h";
 const ADMIN_ACCESS_CODE = "1234567";
 
 const STORAGE_KEYS = {
+  config: "arroyofm_config",
   events: "arroyofm_events",
   announcements: "arroyofm_announcements"
 };
 
-const DEFAULT_EVENTS = [
-  {
-    id: "default-event-1",
-    title: "Noche de música en directo",
-    date: "2026-10-04",
-    description: "Sintoniza con nosotros para una sesión especial con artistas locales."
-  },
-  {
-    id: "default-event-2",
-    title: "Encuentro con la comunidad",
-    date: "2026-10-11",
-    description: "Charla, música y actividades para acompañar el fin de semana."
-  }
-];
+const DEFAULTS = {
+  mode: "caster",
+  gocastUrl: "",
+  gocastType: "link"
+};
 
-const DEFAULT_ANNOUNCEMENTS = [
-  {
-    id: "default-announcement-1",
-    title: "Nueva temporada",
-    text: "Arranca la nueva programación con entrevistas, música y propuestas exclusivas para la comunidad."
+function getSupabaseClient() {
+  const url = (window.SUPABASE_URL || "").trim();
+  const key = (window.SUPABASE_ANON_KEY || "").trim();
+
+  if (!url || !key || !window.supabase) {
+    return null;
   }
-];
+
+  return window.supabase.createClient(url, key);
+}
+
+function isSupabaseConfigured() {
+  return Boolean(getSupabaseClient());
+}
+
+const DEFAULT_EVENTS = [];
+const DEFAULT_ANNOUNCEMENTS = [];
 
 const $ = (selector) => document.querySelector(selector);
 const accessPanel = $("#accessPanel");
@@ -69,11 +67,50 @@ function readStoredCollection(key, fallback) {
     }
 
     const parsed = JSON.parse(storedValue);
-    return Array.isArray(parsed) ? parsed : fallback;
+    return parsed !== null ? parsed : fallback;
   } catch (error) {
     console.warn("No se pudo leer localStorage:", error);
     return fallback;
   }
+}
+
+async function fetchRemoteConfig() {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return readStoredCollection(STORAGE_KEYS.config, DEFAULTS);
+  }
+
+  const { data, error } = await supabase
+    .from("radio_config")
+    .select("*")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (error || !data) {
+    return readStoredCollection(STORAGE_KEYS.config, DEFAULTS);
+  }
+
+  return data;
+}
+
+async function fetchRemoteCollection(tableName, fallback) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return readStoredCollection(tableName, fallback);
+  }
+
+  const { data, error } = await supabase
+    .from(tableName)
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error || !Array.isArray(data)) {
+    return fallback;
+  }
+
+  return data;
 }
 
 function persistCollection(key, value) {
@@ -94,10 +131,8 @@ function formatEventDate(dateString) {
   }).format(date);
 }
 
-function renderAdminEvents() {
+function renderAdminEvents(events = readStoredCollection(STORAGE_KEYS.events, DEFAULT_EVENTS)) {
   if (!eventList) return;
-
-  const events = readStoredCollection(STORAGE_KEYS.events, DEFAULT_EVENTS);
 
   if (!events.length) {
     eventList.innerHTML = "<p class=\"empty-state\">No hay eventos guardados.</p>";
@@ -122,10 +157,8 @@ function renderAdminEvents() {
     .join("");
 }
 
-function renderAdminAnnouncements() {
+function renderAdminAnnouncements(announcements = readStoredCollection(STORAGE_KEYS.announcements, DEFAULT_ANNOUNCEMENTS)) {
   if (!announcementList) return;
-
-  const announcements = readStoredCollection(STORAGE_KEYS.announcements, DEFAULT_ANNOUNCEMENTS);
 
   if (!announcements.length) {
     announcementList.innerHTML = "<p class=\"empty-state\">No hay anuncios publicados.</p>";
@@ -149,9 +182,21 @@ function renderAdminAnnouncements() {
     .join("");
 }
 
-function loadStoredContent() {
-  renderAdminEvents();
-  renderAdminAnnouncements();
+async function loadStoredContent() {
+  const events = isSupabaseConfigured()
+    ? await fetchRemoteCollection("radio_events", DEFAULT_EVENTS)
+    : readStoredCollection(STORAGE_KEYS.events, DEFAULT_EVENTS);
+
+  const announcements = isSupabaseConfigured()
+    ? await fetchRemoteCollection("radio_announcements", DEFAULT_ANNOUNCEMENTS)
+    : readStoredCollection(STORAGE_KEYS.announcements, DEFAULT_ANNOUNCEMENTS);
+
+  renderAdminEvents(events);
+  renderAdminAnnouncements(announcements);
+}
+
+function notifyContentRefresh() {
+  window.dispatchEvent(new CustomEvent("arroyofm:refresh"));
 }
 
 function openSettings() {
@@ -179,31 +224,14 @@ accessForm.addEventListener("submit", (event) => {
 });
 
 async function loadSettings() {
-  try {
-    const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/radio_config?select=mode,gocast_url,gocast_type&limit=1`,
-      {
-        headers: {
-          apikey: SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
-        },
-        cache: "no-store"
-      }
-    );
+  const config = isSupabaseConfigured()
+    ? await fetchRemoteConfig()
+    : readStoredCollection(STORAGE_KEYS.config, DEFAULTS) || DEFAULTS;
+  const normalizedConfig = typeof config === "object" ? config : {};
 
-    const data = await response.json();
-
-    if (!response.ok || !data.length) {
-      throw new Error("No se pudo cargar la configuración");
-    }
-
-    modeInput.value = data[0].mode || "caster";
-    urlInput.value = data[0].gocast_url || "";
-    typeInput.value = data[0].gocast_type || "link";
-  } catch (error) {
-    console.error(error);
-    showMessage("No se pudo cargar la configuración.", "error");
-  }
+  modeInput.value = normalizedConfig.mode === "gocast" ? "gocast" : "caster";
+  urlInput.value = normalizedConfig.gocastUrl || normalizedConfig.gocast_url || "";
+  typeInput.value = normalizedConfig.gocastType === "iframe" || normalizedConfig.gocast_type === "iframe" ? "iframe" : "link";
 }
 
 saveButton.addEventListener("click", async () => {
@@ -226,44 +254,34 @@ saveButton.addEventListener("click", async () => {
   }
 
   const config = {
+    id: 1,
     mode: modeInput.value,
     gocast_url: gocastUrl,
     gocast_type: typeInput.value,
     updated_at: new Date().toISOString()
   };
 
-  saveButton.disabled = true;
-  showMessage("Guardando...");
+  const supabase = getSupabaseClient();
 
-  try {
-    const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/radio_config?id=eq.1`,
-      {
-        method: "PATCH",
-        headers: {
-          apikey: SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal"
-        },
-        body: JSON.stringify(config)
-      }
-    );
+  if (supabase) {
+    const { error } = await supabase.from("radio_config").upsert(config, { onConflict: "id" });
 
-    if (!response.ok) {
-      throw new Error("Error al guardar en Supabase");
+    if (error) {
+      showMessage("No se pudo guardar la configuración en Supabase.", "error");
+      return;
     }
-
-    showMessage("Guardado. El cambio se aplicará a todos los visitantes.", "success");
-  } catch (error) {
-    console.error(error);
-    showMessage("No se pudo guardar. Revisa las políticas RLS de Supabase.", "error");
-  } finally {
-    saveButton.disabled = false;
   }
+
+  persistCollection(STORAGE_KEYS.config, {
+    mode: modeInput.value,
+    gocastUrl,
+    gocastType: typeInput.value
+  });
+  notifyContentRefresh();
+  showMessage("Guardado. El cambio se aplicará en todos los navegadores con acceso a la misma base.", "success");
 });
 
-document.getElementById("addEventBtn").addEventListener("click", () => {
+document.getElementById("addEventBtn").addEventListener("click", async () => {
   const title = eventTitleInput.value.trim();
   const date = eventDateInput.value;
   const description = eventDescriptionInput.value.trim();
@@ -274,25 +292,46 @@ document.getElementById("addEventBtn").addEventListener("click", () => {
     return;
   }
 
-  const events = readStoredCollection(STORAGE_KEYS.events, DEFAULT_EVENTS);
-  const newEvent = {
-    id: `event-${Date.now()}`,
+  const payload = {
     title,
     date,
-    description
+    description,
+    created_at: new Date().toISOString()
   };
 
-  persistCollection(STORAGE_KEYS.events, [...events, newEvent]);
-  renderAdminEvents();
+  const supabase = getSupabaseClient();
+  let savedEvent = { ...payload, id: `event-${Date.now()}` };
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("radio_events")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) {
+      eventMessage.textContent = "No se pudo guardar el evento en Supabase.";
+      eventMessage.className = "notice error";
+      return;
+    }
+
+    savedEvent = data;
+  }
+
+  const events = readStoredCollection(STORAGE_KEYS.events, DEFAULT_EVENTS);
+  const next = [...events, savedEvent];
+
+  persistCollection(STORAGE_KEYS.events, next);
+  renderAdminEvents(next);
+  notifyContentRefresh();
   eventMessage.textContent = "Evento guardado correctamente.";
   eventMessage.className = "notice success";
   eventTitleInput.value = "";
   eventDateInput.value = "";
   eventDescriptionInput.value = "";
-  window.dispatchEvent(new Event("storage"));
 });
 
-document.getElementById("addAnnouncementBtn").addEventListener("click", () => {
+document.getElementById("addAnnouncementBtn").addEventListener("click", async () => {
   const title = announcementTitleInput.value.trim();
   const text = announcementTextInput.value.trim();
 
@@ -302,52 +341,103 @@ document.getElementById("addAnnouncementBtn").addEventListener("click", () => {
     return;
   }
 
-  const announcements = readStoredCollection(STORAGE_KEYS.announcements, DEFAULT_ANNOUNCEMENTS);
-  const newAnnouncement = {
-    id: `announcement-${Date.now()}`,
+  const payload = {
     title,
-    text
+    text,
+    created_at: new Date().toISOString()
   };
 
-  persistCollection(STORAGE_KEYS.announcements, [...announcements, newAnnouncement]);
-  renderAdminAnnouncements();
+  const supabase = getSupabaseClient();
+  let savedAnnouncement = { ...payload, id: `announcement-${Date.now()}` };
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("radio_announcements")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) {
+      announcementMessage.textContent = "No se pudo guardar el anuncio en Supabase.";
+      announcementMessage.className = "notice error";
+      return;
+    }
+
+    savedAnnouncement = data;
+  }
+
+  const announcements = readStoredCollection(STORAGE_KEYS.announcements, DEFAULT_ANNOUNCEMENTS);
+  const next = [...announcements, savedAnnouncement];
+
+  persistCollection(STORAGE_KEYS.announcements, next);
+  renderAdminAnnouncements(next);
+  notifyContentRefresh();
   announcementMessage.textContent = "Anuncio publicado.";
   announcementMessage.className = "notice success";
   announcementTitleInput.value = "";
   announcementTextInput.value = "";
-  window.dispatchEvent(new Event("storage"));
 });
 
-eventList.addEventListener("click", (event) => {
+eventList.addEventListener("click", async (event) => {
   const deleteButton = event.target.closest("[data-delete-event]");
 
   if (!deleteButton) return;
 
   const id = deleteButton.dataset.deleteEvent;
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    const { error } = await supabase.from("radio_events").delete().eq("id", id);
+
+    if (error) {
+      eventMessage.textContent = "No se pudo borrar el evento en Supabase.";
+      eventMessage.className = "notice error";
+      return;
+    }
+  }
+
   const events = readStoredCollection(STORAGE_KEYS.events, DEFAULT_EVENTS).filter((item) => item.id !== id);
   persistCollection(STORAGE_KEYS.events, events);
-  renderAdminEvents();
+  renderAdminEvents(events);
+  notifyContentRefresh();
   eventMessage.textContent = "Evento eliminado.";
   eventMessage.className = "notice success";
-  window.dispatchEvent(new Event("storage"));
 });
 
-announcementList.addEventListener("click", (event) => {
+announcementList.addEventListener("click", async (event) => {
   const deleteButton = event.target.closest("[data-delete-announcement]");
 
   if (!deleteButton) return;
 
   const id = deleteButton.dataset.deleteAnnouncement;
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    const { error } = await supabase.from("radio_announcements").delete().eq("id", id);
+
+    if (error) {
+      announcementMessage.textContent = "No se pudo borrar el anuncio en Supabase.";
+      announcementMessage.className = "notice error";
+      return;
+    }
+  }
+
   const announcements = readStoredCollection(STORAGE_KEYS.announcements, DEFAULT_ANNOUNCEMENTS).filter((item) => item.id !== id);
   persistCollection(STORAGE_KEYS.announcements, announcements);
-  renderAdminAnnouncements();
+  renderAdminAnnouncements(announcements);
+  notifyContentRefresh();
   announcementMessage.textContent = "Anuncio eliminado.";
   announcementMessage.className = "notice success";
-  window.dispatchEvent(new Event("storage"));
 });
 
-window.addEventListener("storage", (event) => {
-  if (event.key === STORAGE_KEYS.events || event.key === STORAGE_KEYS.announcements) {
+function handleAdminRefresh(event) {
+  const changedKey = event && event.key;
+
+  if (!changedKey || [STORAGE_KEYS.config, STORAGE_KEYS.events, STORAGE_KEYS.announcements].includes(changedKey)) {
+    loadSettings();
     loadStoredContent();
   }
-});
+}
+
+window.addEventListener("storage", handleAdminRefresh);
+window.addEventListener("arroyofm:refresh", handleAdminRefresh);

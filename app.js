@@ -1,10 +1,6 @@
 
-const SUPABASE_URL = "https://gixdaycfpnijlvlzfvny.supabase.co";
-
-const SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_h2CWl2ydWgI3safRUcYmxg_ffIDzs3h";
-
 const STORAGE_KEYS = {
+  config: "arroyofm_config",
   events: "arroyofm_events",
   announcements: "arroyofm_announcements"
 };
@@ -15,28 +11,23 @@ const DEFAULTS = {
   gocastType: "link"
 };
 
-const DEFAULT_EVENTS = [
-  {
-    id: "default-event-1",
-    title: "Noche de música en directo",
-    date: "2026-10-04",
-    description: "Sintoniza con nosotros para una sesión especial con artistas locales."
-  },
-  {
-    id: "default-event-2",
-    title: "Encuentro con la comunidad",
-    date: "2026-10-11",
-    description: "Charla, música y actividades para acompañar el fin de semana."
-  }
-];
+function getSupabaseClient() {
+  const url = (window.SUPABASE_URL || "").trim();
+  const key = (window.SUPABASE_ANON_KEY || "").trim();
 
-const DEFAULT_ANNOUNCEMENTS = [
-  {
-    id: "default-announcement-1",
-    title: "Nueva temporada",
-    text: "Arranca la nueva programación con entrevistas, música y propuestas exclusivas para la comunidad."
+  if (!url || !key || !window.supabase) {
+    return null;
   }
-];
+
+  return window.supabase.createClient(url, key);
+}
+
+function isSupabaseConfigured() {
+  return Boolean(getSupabaseClient());
+}
+
+const DEFAULT_EVENTS = [];
+const DEFAULT_ANNOUNCEMENTS = [];
 
 const casterEmbed = `
 <div data-type="newStreamPlayer"
@@ -61,11 +52,65 @@ function readStoredCollection(key, fallback) {
     }
 
     const parsed = JSON.parse(storedValue);
-    return Array.isArray(parsed) ? parsed : fallback;
+    return parsed !== null ? parsed : fallback;
   } catch (error) {
     console.warn("No se pudo leer desde localStorage:", error);
     return fallback;
   }
+}
+
+function normalizeConfig(config) {
+  const normalizedConfig = typeof config === "object" && config ? config : {};
+
+  return {
+    mode: normalizedConfig.mode === "gocast" ? "gocast" : DEFAULTS.mode,
+    gocastUrl: normalizedConfig.gocastUrl || normalizedConfig.gocast_url || "",
+    gocastType: normalizedConfig.gocastType === "iframe" || normalizedConfig.gocast_type === "iframe" ? "iframe" : DEFAULTS.gocastType
+  };
+}
+
+function readStoredConfig() {
+  const config = readStoredCollection(STORAGE_KEYS.config, DEFAULTS) || DEFAULTS;
+  return normalizeConfig(config);
+}
+
+async function fetchRemoteConfig() {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return readStoredConfig();
+  }
+
+  const { data, error } = await supabase
+    .from("radio_config")
+    .select("*")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (error || !data) {
+    return readStoredConfig();
+  }
+
+  return normalizeConfig(data);
+}
+
+async function fetchRemoteCollection(tableName, fallback) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return readStoredCollection(tableName, fallback);
+  }
+
+  const { data, error } = await supabase
+    .from(tableName)
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error || !Array.isArray(data)) {
+    return fallback;
+  }
+
+  return data;
 }
 
 function formatEventDate(dateString) {
@@ -82,12 +127,14 @@ function formatEventDate(dateString) {
   }).format(date);
 }
 
-function renderAnnouncements() {
+async function renderAnnouncements() {
   const list = document.querySelector("#announcementsList");
 
   if (!list) return;
 
-  const announcements = readStoredCollection(STORAGE_KEYS.announcements, DEFAULT_ANNOUNCEMENTS);
+  const announcements = isSupabaseConfigured()
+    ? await fetchRemoteCollection("radio_announcements", DEFAULT_ANNOUNCEMENTS)
+    : readStoredCollection(STORAGE_KEYS.announcements, DEFAULT_ANNOUNCEMENTS);
 
   if (!announcements.length) {
     list.innerHTML = "<p class=\"empty-state\">No hay anuncios publicados.</p>";
@@ -109,12 +156,14 @@ function renderAnnouncements() {
     .join("");
 }
 
-function renderCalendar() {
+async function renderCalendar() {
   const list = document.querySelector("#eventsList");
 
   if (!list) return;
 
-  const events = readStoredCollection(STORAGE_KEYS.events, DEFAULT_EVENTS);
+  const events = isSupabaseConfigured()
+    ? await fetchRemoteCollection("radio_events", DEFAULT_EVENTS)
+    : readStoredCollection(STORAGE_KEYS.events, DEFAULT_EVENTS);
 
   if (!events.length) {
     list.innerHTML = "<p class=\"empty-state\">Todavía no hay eventos programados.</p>";
@@ -142,45 +191,13 @@ function renderCalendar() {
     .join("");
 }
 
-function refreshDynamicContent() {
-  renderAnnouncements();
-  renderCalendar();
-}
-
-async function getConfig() {
-  try {
-    const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/radio_config?select=mode,gocast_url,gocast_type&limit=1`,
-      {
-        headers: {
-          apikey: SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
-        },
-        cache: "no-store"
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error("No se pudo consultar Supabase");
-    }
-
-    const data = await response.json();
-
-    if (!data.length) return DEFAULTS;
-
-    return {
-      mode: data[0].mode === "gocast" ? "gocast" : DEFAULTS.mode,
-      gocastUrl: data[0].gocast_url || "",
-      gocastType: data[0].gocast_type === "iframe" ? "iframe" : DEFAULTS.gocastType
-    };
-  } catch (error) {
-    console.error(error);
-    return DEFAULTS;
-  }
+async function refreshDynamicContent() {
+  await renderAnnouncements();
+  await renderCalendar();
 }
 
 async function renderPlayer() {
-  const config = await getConfig();
+  const config = isSupabaseConfigured() ? await fetchRemoteConfig() : readStoredConfig();
 
   const container = document.querySelector("#playerContainer");
   const badge = document.querySelector("#modeBadge");
@@ -257,12 +274,23 @@ if (year) {
   year.textContent = new Date().getFullYear();
 }
 
-window.addEventListener("storage", (event) => {
-  if (event.key === STORAGE_KEYS.events || event.key === STORAGE_KEYS.announcements) {
-    refreshDynamicContent();
+async function handleContentRefresh(event) {
+  const changedKey = event && event.key;
+
+  if (!changedKey || [STORAGE_KEYS.config, STORAGE_KEYS.events, STORAGE_KEYS.announcements].includes(changedKey)) {
+    await renderPlayer();
+    await refreshDynamicContent();
   }
+}
+
+window.addEventListener("storage", () => {
+  handleContentRefresh({ key: STORAGE_KEYS.config });
+});
+window.addEventListener("arroyofm:refresh", () => {
+  handleContentRefresh({ key: STORAGE_KEYS.config });
 });
 
-renderPlayer();
-renderAnnouncements();
-renderCalendar();
+(async () => {
+  await renderPlayer();
+  await refreshDynamicContent();
+})();
