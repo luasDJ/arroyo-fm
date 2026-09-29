@@ -117,13 +117,20 @@ async function loadOrMigrateCollection(tableName, storageKey) {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
-    return readStoredCollection(storageKey, []);
+    return [];
   }
 
   const { data, error } = await supabase.from(tableName).select("*");
 
-  if (error || !Array.isArray(data) || data.length) {
-    return Array.isArray(data) ? data : [];
+  if (error || !Array.isArray(data)) {
+    const messageElement = tableName === "radio_events" ? eventMessage : announcementMessage;
+    messageElement.textContent = "No se pudo leer el contenido de Supabase.";
+    messageElement.className = "notice error";
+    return [];
+  }
+
+  if (data.length) {
+    return data;
   }
 
   const localItems = readStoredCollection(storageKey, []);
@@ -155,6 +162,9 @@ async function loadOrMigrateCollection(tableName, storageKey) {
 
   if (migrationError || !Array.isArray(migratedItems)) {
     console.warn(`No se pudo migrar el contenido local de ${tableName}:`, migrationError);
+    const messageElement = tableName === "radio_events" ? eventMessage : announcementMessage;
+    messageElement.textContent = "No se pudo importar el contenido local a Supabase.";
+    messageElement.className = "notice error";
     return data;
   }
 
@@ -232,6 +242,16 @@ function renderAdminAnnouncements(announcements = readStoredCollection(STORAGE_K
 }
 
 async function loadStoredContent() {
+  if (!getSupabaseClient()) {
+    renderAdminEvents([]);
+    renderAdminAnnouncements([]);
+    eventMessage.textContent = "No hay conexión con Supabase; los cambios no se pueden compartir.";
+    eventMessage.className = "notice error";
+    announcementMessage.textContent = eventMessage.textContent;
+    announcementMessage.className = "notice error";
+    return;
+  }
+
   const events = await loadOrMigrateCollection("radio_events", STORAGE_KEYS.events);
   const announcements = await loadOrMigrateCollection("radio_announcements", STORAGE_KEYS.announcements);
 
@@ -307,13 +327,16 @@ saveButton.addEventListener("click", async () => {
 
   const supabase = getSupabaseClient();
 
-  if (supabase) {
-    const { error } = await supabase.from("radio_config").upsert(config, { onConflict: "id" });
+  if (!supabase) {
+    showMessage("No hay conexión con Supabase; la configuración no se guardó.", "error");
+    return;
+  }
 
-    if (error) {
-      showMessage("No se pudo guardar la configuración en Supabase.", "error");
-      return;
-    }
+  const { error } = await supabase.from("radio_config").upsert(config, { onConflict: "id" });
+
+  if (error) {
+    showMessage("No se pudo guardar la configuración en Supabase.", "error");
+    return;
   }
 
   persistCollection(STORAGE_KEYS.config, {
@@ -344,29 +367,22 @@ document.getElementById("addEventBtn").addEventListener("click", async () => {
   };
 
   const supabase = getSupabaseClient();
-  let savedEvent = { ...payload, id: `event-${Date.now()}` };
 
-  if (supabase) {
-    const { data, error } = await supabase
-      .from("radio_events")
-      .insert(payload)
-      .select()
-      .single();
-
-    if (error) {
-      eventMessage.textContent = "No se pudo guardar el evento en Supabase.";
-      eventMessage.className = "notice error";
-      return;
-    }
-
-    savedEvent = data;
+  if (!supabase) {
+    eventMessage.textContent = "No hay conexión con Supabase; el evento no se guardó.";
+    eventMessage.className = "notice error";
+    return;
   }
 
-  const events = readStoredCollection(STORAGE_KEYS.events, DEFAULT_EVENTS);
-  const next = [...events, savedEvent];
+  const { error } = await supabase.from("radio_events").insert(payload);
 
-  persistCollection(STORAGE_KEYS.events, next);
-  renderAdminEvents(next);
+  if (error) {
+    eventMessage.textContent = "No se pudo guardar el evento en Supabase.";
+    eventMessage.className = "notice error";
+    return;
+  }
+
+  await loadStoredContent();
   notifyContentRefresh();
   eventMessage.textContent = "Evento guardado correctamente.";
   eventMessage.className = "notice success";
@@ -392,29 +408,22 @@ document.getElementById("addAnnouncementBtn").addEventListener("click", async ()
   };
 
   const supabase = getSupabaseClient();
-  let savedAnnouncement = { ...payload, id: `announcement-${Date.now()}` };
 
-  if (supabase) {
-    const { data, error } = await supabase
-      .from("radio_announcements")
-      .insert(payload)
-      .select()
-      .single();
-
-    if (error) {
-      announcementMessage.textContent = "No se pudo guardar el anuncio en Supabase.";
-      announcementMessage.className = "notice error";
-      return;
-    }
-
-    savedAnnouncement = data;
+  if (!supabase) {
+    announcementMessage.textContent = "No hay conexión con Supabase; el anuncio no se publicó.";
+    announcementMessage.className = "notice error";
+    return;
   }
 
-  const announcements = readStoredCollection(STORAGE_KEYS.announcements, DEFAULT_ANNOUNCEMENTS);
-  const next = [...announcements, savedAnnouncement];
+  const { error } = await supabase.from("radio_announcements").insert(payload);
 
-  persistCollection(STORAGE_KEYS.announcements, next);
-  renderAdminAnnouncements(next);
+  if (error) {
+    announcementMessage.textContent = "No se pudo guardar el anuncio en Supabase.";
+    announcementMessage.className = "notice error";
+    return;
+  }
+
+  await loadStoredContent();
   notifyContentRefresh();
   announcementMessage.textContent = "Anuncio publicado.";
   announcementMessage.className = "notice success";
@@ -430,19 +439,21 @@ eventList.addEventListener("click", async (event) => {
   const id = deleteButton.dataset.deleteEvent;
   const supabase = getSupabaseClient();
 
-  if (supabase) {
-    const { error } = await supabase.from("radio_events").delete().eq("id", id);
-
-    if (error) {
-      eventMessage.textContent = "No se pudo borrar el evento en Supabase.";
-      eventMessage.className = "notice error";
-      return;
-    }
+  if (!supabase) {
+    eventMessage.textContent = "No hay conexión con Supabase; el evento no se eliminó.";
+    eventMessage.className = "notice error";
+    return;
   }
 
-  const events = readStoredCollection(STORAGE_KEYS.events, DEFAULT_EVENTS).filter((item) => item.id !== id);
-  persistCollection(STORAGE_KEYS.events, events);
-  renderAdminEvents(events);
+  const { error } = await supabase.from("radio_events").delete().eq("id", id);
+
+  if (error) {
+    eventMessage.textContent = "No se pudo borrar el evento en Supabase.";
+    eventMessage.className = "notice error";
+    return;
+  }
+
+  await loadStoredContent();
   notifyContentRefresh();
   eventMessage.textContent = "Evento eliminado.";
   eventMessage.className = "notice success";
@@ -456,19 +467,21 @@ announcementList.addEventListener("click", async (event) => {
   const id = deleteButton.dataset.deleteAnnouncement;
   const supabase = getSupabaseClient();
 
-  if (supabase) {
-    const { error } = await supabase.from("radio_announcements").delete().eq("id", id);
-
-    if (error) {
-      announcementMessage.textContent = "No se pudo borrar el anuncio en Supabase.";
-      announcementMessage.className = "notice error";
-      return;
-    }
+  if (!supabase) {
+    announcementMessage.textContent = "No hay conexión con Supabase; el anuncio no se eliminó.";
+    announcementMessage.className = "notice error";
+    return;
   }
 
-  const announcements = readStoredCollection(STORAGE_KEYS.announcements, DEFAULT_ANNOUNCEMENTS).filter((item) => item.id !== id);
-  persistCollection(STORAGE_KEYS.announcements, announcements);
-  renderAdminAnnouncements(announcements);
+  const { error } = await supabase.from("radio_announcements").delete().eq("id", id);
+
+  if (error) {
+    announcementMessage.textContent = "No se pudo borrar el anuncio en Supabase.";
+    announcementMessage.className = "notice error";
+    return;
+  }
+
+  await loadStoredContent();
   notifyContentRefresh();
   announcementMessage.textContent = "Anuncio eliminado.";
   announcementMessage.className = "notice success";

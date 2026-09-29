@@ -134,7 +134,7 @@ async function renderAnnouncements() {
 
   const announcements = isSupabaseConfigured()
     ? await fetchRemoteCollection("radio_announcements", DEFAULT_ANNOUNCEMENTS)
-    : readStoredCollection(STORAGE_KEYS.announcements, DEFAULT_ANNOUNCEMENTS);
+    : DEFAULT_ANNOUNCEMENTS;
 
   if (!announcements.length) {
     list.innerHTML = "<p class=\"empty-state\">No hay anuncios publicados.</p>";
@@ -163,7 +163,7 @@ async function renderCalendar() {
 
   const events = isSupabaseConfigured()
     ? await fetchRemoteCollection("radio_events", DEFAULT_EVENTS)
-    : readStoredCollection(STORAGE_KEYS.events, DEFAULT_EVENTS);
+    : DEFAULT_EVENTS;
 
   if (!events.length) {
     list.innerHTML = "<p class=\"empty-state\">Todavía no hay eventos programados.</p>";
