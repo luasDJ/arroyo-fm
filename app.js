@@ -208,7 +208,7 @@ async function renderPlayer() {
 
   if (config.mode === "gocast") {
     badge.textContent = "AUTODJ";
-    label.textContent = "RadioKing";
+    label.textContent = "AutoDJ";
 
     if (!config.gocastUrl) {
       hint.textContent = "Configura una URL de GoCast desde el panel de emisión.";
@@ -217,14 +217,14 @@ async function renderPlayer() {
     }
 
     hint.textContent = config.gocastType === "iframe"
-      ? "AutoDJ de RadioKing"
-      : "Abre el reproductor alternativo de RadioKing";
+      ? "Reproductor AutoDJ"
+      : "Abre el reproductor alternativo de AutoDJ";
 
     if (config.gocastType === "iframe") {
       container.innerHTML = `
         <iframe
           src="${escapeAttr(config.gocastUrl)}"
-          title="RadioKing AutoDJ"
+          title="AutoDJ"
           allow="autoplay"
           style="width:100%; min-height:180px; border:0;">
         </iframe>`;
@@ -235,7 +235,7 @@ async function renderPlayer() {
           target="_blank"
           rel="noopener"
           href="${escapeAttr(config.gocastUrl)}">
-          Abrir RadioKing AutoDJ
+          Abrir AutoDJ
         </a>`;
     }
   } else {
