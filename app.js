@@ -274,6 +274,33 @@ if (year) {
   year.textContent = new Date().getFullYear();
 }
 
+const contactDialog = document.querySelector("#contactDialog");
+const contactDialogTitle = document.querySelector("#contactDialogTitle");
+const contactDialogContents = document.querySelectorAll("[data-contact-content]");
+
+document.querySelectorAll("[data-contact-view]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const view = button.dataset.contactView;
+    const title = view === "contact" ? "Contacto" : "Redes sociales";
+
+    contactDialogTitle.textContent = title;
+    contactDialogContents.forEach((content) => {
+      content.hidden = content.dataset.contactContent !== view;
+    });
+    contactDialog.showModal();
+  });
+});
+
+document.querySelector(".contact-dialog-close").addEventListener("click", () => {
+  contactDialog.close();
+});
+
+contactDialog.addEventListener("click", (event) => {
+  if (event.target === contactDialog) {
+    contactDialog.close();
+  }
+});
+
 async function handleContentRefresh(event) {
   const changedKey = event && event.key;
 

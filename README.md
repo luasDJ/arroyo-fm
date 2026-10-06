@@ -19,3 +19,6 @@ El panel solicita el código `1234567` cada vez que se abre. Este código está 
 El SQL de esta versión permite lectura y escritura anónimas para que el panel estático funcione. Cualquier persona puede cambiar la emisión o publicar/eliminar contenido aunque el panel pida un código. Para producción, protege las escrituras con autenticación de administrador y políticas RLS; conserva la lectura pública con la Publishable key.
 
 El SQL crea una fila de configuración inicial con el reproductor Caster.fm. Los eventos y anuncios no contienen datos de demostración.
+
+
+## Informacion 

@@ -31,7 +31,11 @@
         <p>Escucha Arroyo FM estés donde estés. Música, compañía y toda la energía de Arroyomolinos.</p>
         <div class="hero-actions">
           <a class="primary-button" href="#player">Escuchar ahora <span aria-hidden="true">▶</span></a>
-          <a class="whatsapp-button" href="https://whatsapp.com/channel/0029VbDt3pa1HsppGh0NS52C" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+          <div class="hero-contact-actions">
+            <a class="whatsapp-button" href="https://whatsapp.com/channel/0029VbDt3pa1HsppGh0NS52C" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+            <button class="contact-button" type="button" data-contact-view="social">Redes sociales</button>
+            <button class="contact-button" type="button" data-contact-view="contact">Contacto</button>
+          </div>
         </div>
       </div>
       <div class="hero-signal" aria-hidden="true">
@@ -81,6 +85,29 @@
       </div>
     </section>
   </main>
+
+  <dialog class="contact-dialog" id="contactDialog" aria-labelledby="contactDialogTitle">
+    <div class="contact-dialog-header">
+      <h2 id="contactDialogTitle">Redes sociales</h2>
+      <button class="contact-dialog-close" type="button" aria-label="Cerrar">×</button>
+    </div>
+    <section class="contact-dialog-content" data-contact-content="social">
+      <a href="https://www.tiktok.com/@arroyo.fm" target="_blank" rel="noopener noreferrer">
+        <span>TikTok</span>
+        <span>arroyo.fm <span aria-hidden="true">↗</span></span>
+      </a>
+      <a href="https://www.youtube.com/@ARROYOFM" target="_blank" rel="noopener noreferrer">
+        <span>YouTube</span>
+        <span>@ARROYOFM <span aria-hidden="true">↗</span></span>
+      </a>
+    </section>
+    <section class="contact-dialog-content" data-contact-content="contact" hidden>
+      <a href="mailto:contact.arroyo.fm@gmail.com">
+        <span>Gmail</span>
+        <span>contact.arroyo.fm@gmail.com</span>
+      </a>
+    </section>
+  </dialog>
 
   <footer class="site-footer">
     <div class="footer-brand"><strong>ARROYO FM</strong><span>Arroyomolinos · Madrid</span></div>
