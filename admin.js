@@ -1,6 +1,4 @@
 
-const ADMIN_ACCESS_CODE = "1234567";
-
 const STORAGE_KEYS = {
   config: "arroyofm_config",
   events: "arroyofm_events",
@@ -13,7 +11,13 @@ const DEFAULTS = {
   gocastType: "link"
 };
 
+let supabaseClient;
+
 function getSupabaseClient() {
+  if (supabaseClient) {
+    return supabaseClient;
+  }
+
   const url = (window.SUPABASE_URL || "").trim();
   const key = (window.SUPABASE_ANON_KEY || "").trim();
 
@@ -21,7 +25,8 @@ function getSupabaseClient() {
     return null;
   }
 
-  return window.supabase.createClient(url, key);
+  supabaseClient = window.supabase.createClient(url, key);
+  return supabaseClient;
 }
 
 function isSupabaseConfigured() {
@@ -36,8 +41,10 @@ const accessPanel = $("#accessPanel");
 const settingsPanel = $("#settingsPanel");
 const contentPanel = $("#contentPanel");
 const accessForm = $("#accessForm");
-const accessCodeInput = $("#accessCode");
+const adminEmailInput = $("#adminEmail");
+const adminPasswordInput = $("#adminPassword");
 const accessMessage = $("#accessMessage");
+const signOutButton = $("#signOutBtn");
 const modeInput = $("#mode");
 const urlInput = $("#gocastUrl");
 const typeInput = $("#gocastType");
@@ -56,6 +63,32 @@ const announcementList = $("#announcementList");
 function showMessage(text, type = "") {
   message.textContent = text;
   message.className = `notice ${type}`.trim();
+}
+
+function isAdminUser(user) {
+  return user?.app_metadata?.role === "admin";
+}
+
+function showAccessMessage(text, type = "") {
+  accessMessage.textContent = text;
+  accessMessage.className = `notice ${type}`.trim();
+}
+
+function closeSettings() {
+  accessPanel.classList.remove("hidden");
+  settingsPanel.classList.add("hidden");
+  settingsPanel.setAttribute("aria-hidden", "true");
+  contentPanel.classList.add("hidden");
+  contentPanel.setAttribute("aria-hidden", "true");
+}
+
+function escapeText(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function readStoredCollection(key, fallback) {
@@ -205,11 +238,11 @@ function renderAdminEvents(events = readStoredCollection(STORAGE_KEYS.events, DE
       (event) => `
         <div class="admin-item">
           <div>
-            <strong>${event.title}</strong>
-            <small>${formatEventDate(event.date)}</small>
-            <p>${event.description || "Sin descripción."}</p>
+            <strong>${escapeText(event.title)}</strong>
+            <small>${escapeText(formatEventDate(event.date))}</small>
+            <p>${escapeText(event.description || "Sin descripción.")}</p>
           </div>
-          <button type="button" class="danger-button" data-delete-event="${event.id}">Eliminar</button>
+          <button type="button" class="danger-button" data-delete-event="${escapeText(event.id)}">Eliminar</button>
         </div>
       `
     )
@@ -231,10 +264,10 @@ function renderAdminAnnouncements(announcements = readStoredCollection(STORAGE_K
       (announcement) => `
         <div class="admin-item">
           <div>
-            <strong>${announcement.title}</strong>
-            <p>${announcement.text}</p>
+            <strong>${escapeText(announcement.title)}</strong>
+            <p>${escapeText(announcement.text)}</p>
           </div>
-          <button type="button" class="danger-button" data-delete-announcement="${announcement.id}">Eliminar</button>
+          <button type="button" class="danger-button" data-delete-announcement="${escapeText(announcement.id)}">Eliminar</button>
         </div>
       `
     )
@@ -273,19 +306,84 @@ function openSettings() {
   loadStoredContent();
 }
 
-accessForm.addEventListener("submit", (event) => {
+accessForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  if (accessCodeInput.value.trim() === ADMIN_ACCESS_CODE) {
-    accessMessage.textContent = "";
-    openSettings();
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    showAccessMessage("No hay conexión con Supabase; no se puede iniciar sesión.", "error");
     return;
   }
 
-  accessMessage.textContent = "Código incorrecto.";
-  accessMessage.className = "notice error";
-  accessCodeInput.select();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: adminEmailInput.value.trim(),
+    password: adminPasswordInput.value
+  });
+
+  if (error) {
+    showAccessMessage("No se pudo iniciar sesión. Comprueba el correo y la contraseña.", "error");
+    return;
+  }
+
+  if (!isAdminUser(data.user)) {
+    await supabase.auth.signOut();
+    showAccessMessage("Esta cuenta no tiene permisos de administrador.", "error");
+    return;
+  }
+
+  adminPasswordInput.value = "";
+  showAccessMessage("");
+  openSettings();
 });
+
+signOutButton.addEventListener("click", async () => {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    showMessage("No se pudo conectar con Supabase para cerrar sesión.", "error");
+    return;
+  }
+
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    showMessage("No se pudo cerrar la sesión.", "error");
+    return;
+  }
+
+  closeSettings();
+  adminPasswordInput.value = "";
+});
+
+const supabase = getSupabaseClient();
+
+if (!supabase) {
+  showAccessMessage("Configura la conexión con Supabase para acceder al panel.", "error");
+} else {
+  supabase.auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_OUT") {
+      closeSettings();
+    }
+  });
+
+  supabase.auth.getSession().then(({ data, error }) => {
+    if (error) {
+      showAccessMessage("No se pudo comprobar la sesión de administrador.", "error");
+      return;
+    }
+
+    if (isAdminUser(data.session?.user)) {
+      openSettings();
+      return;
+    }
+
+    if (data.session) {
+      supabase.auth.signOut();
+      showAccessMessage("Esta cuenta no tiene permisos de administrador.", "error");
+    }
+  });
+}
 
 async function loadSettings() {
   const config = isSupabaseConfigured()
@@ -332,7 +430,7 @@ saveButton.addEventListener("click", async () => {
     return;
   }
 
-  const { error } = await supabase.from("radio_config").upsert(config, { onConflict: "id" });
+  const { error } = await supabase.from("radio_config").update(config).eq("id", 1);
 
   if (error) {
     showMessage("No se pudo guardar la configuración en Supabase.", "error");

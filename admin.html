@@ -30,18 +30,23 @@
 
     <section id="accessPanel" class="admin-panel access-panel">
       <h3>Acceso restringido</h3>
-      <p class="notice">Introduce el código para abrir la configuración de emisión.</p>
+      <p class="notice">Inicia sesión con la cuenta de administrador.</p>
       <form id="accessForm">
         <div class="form-field">
-          <label for="accessCode">Código de acceso</label>
-          <input id="accessCode" type="password" inputmode="numeric" pattern="[0-9]{7}" maxlength="7" autocomplete="off" required>
+          <label for="adminEmail">Correo electrónico</label>
+          <input id="adminEmail" type="email" autocomplete="username" required>
         </div>
-        <button type="submit">Acceder al panel</button>
+        <div class="form-field">
+          <label for="adminPassword">Contraseña</label>
+          <input id="adminPassword" type="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit">Iniciar sesión</button>
       </form>
       <p id="accessMessage" class="notice"></p>
     </section>
 
     <section id="settingsPanel" class="admin-panel hidden" aria-hidden="true">
+      <button id="signOutBtn" class="danger-button" type="button">Cerrar sesión</button>
       <h3>Configuración del reproductor</h3>
 
       <p class="notice">
@@ -136,6 +141,6 @@
     window.SUPABASE_ANON_KEY = "sb_publishable_h2CWl2ydWgI3safRUcYmxg_ffIDzs3h";
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="admin.js?v=5979d67"></script>
+  <script src="admin.js?v=auth-rls-1"></script>
 </body>
 </html>

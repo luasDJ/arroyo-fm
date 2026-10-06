@@ -28,7 +28,7 @@ insert into public.radio_config (id, mode, gocast_url, gocast_type, updated_at)
 values (1, 'caster', '', 'link', now())
 on conflict (id) do nothing;
 
--- Políticas públicas para entorno sencillo / prueba
+-- Lectura pública; las escrituras requieren una cuenta autenticada con app_metadata.role = 'admin'.
 alter table public.radio_config enable row level security;
 alter table public.radio_events enable row level security;
 alter table public.radio_announcements enable row level security;
@@ -46,25 +46,38 @@ create policy "Public read radio_announcements" on public.radio_announcements
 for select using (true);
 
 drop policy if exists "Public update radio_config" on public.radio_config;
-create policy "Public update radio_config" on public.radio_config
-for update using (true) with check (true);
-
 drop policy if exists "Public insert radio_events" on public.radio_events;
-create policy "Public insert radio_events" on public.radio_events
-for insert with check (true);
-
 drop policy if exists "Public delete radio_events" on public.radio_events;
-create policy "Public delete radio_events" on public.radio_events
-for delete using (true);
-
 drop policy if exists "Public insert radio_announcements" on public.radio_announcements;
-create policy "Public insert radio_announcements" on public.radio_announcements
-for insert with check (true);
-
 drop policy if exists "Public delete radio_announcements" on public.radio_announcements;
-create policy "Public delete radio_announcements" on public.radio_announcements
-for delete using (true);
 
+drop policy if exists "Admin update radio_config" on public.radio_config;
+create policy "Admin update radio_config" on public.radio_config
+for update to authenticated
+using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+drop policy if exists "Admin insert radio_events" on public.radio_events;
+create policy "Admin insert radio_events" on public.radio_events
+for insert to authenticated
+with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+drop policy if exists "Admin delete radio_events" on public.radio_events;
+create policy "Admin delete radio_events" on public.radio_events
+for delete to authenticated
+using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+drop policy if exists "Admin insert radio_announcements" on public.radio_announcements;
+create policy "Admin insert radio_announcements" on public.radio_announcements
+for insert to authenticated
+with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+drop policy if exists "Admin delete radio_announcements" on public.radio_announcements;
+create policy "Admin delete radio_announcements" on public.radio_announcements
+for delete to authenticated
+using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+revoke all privileges on public.radio_config, public.radio_events, public.radio_announcements from public, anon, authenticated;
 grant select on public.radio_config, public.radio_events, public.radio_announcements to anon, authenticated;
-grant update on public.radio_config to anon, authenticated;
-grant insert, delete on public.radio_events, public.radio_announcements to anon, authenticated;
+grant update on public.radio_config to authenticated;
+grant insert, delete on public.radio_events, public.radio_announcements to authenticated;
