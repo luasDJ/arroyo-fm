@@ -12,6 +12,7 @@ const DEFAULTS = {
 };
 
 let supabaseClient;
+let adminCode = "";
 
 function getSupabaseClient() {
   if (supabaseClient) {
@@ -35,14 +36,15 @@ function isSupabaseConfigured() {
 
 const DEFAULT_EVENTS = [];
 const DEFAULT_ANNOUNCEMENTS = [];
+const DEFAULT_PODCASTS = [];
+const MAX_PODCAST_SIZE = 100 * 1024 * 1024;
 
 const $ = (selector) => document.querySelector(selector);
 const accessPanel = $("#accessPanel");
 const settingsPanel = $("#settingsPanel");
 const contentPanel = $("#contentPanel");
 const accessForm = $("#accessForm");
-const adminEmailInput = $("#adminEmail");
-const adminPasswordInput = $("#adminPassword");
+const adminCodeInput = $("#adminCode");
 const accessMessage = $("#accessMessage");
 const signOutButton = $("#signOutBtn");
 const modeInput = $("#mode");
@@ -59,14 +61,15 @@ const announcementTitleInput = $("#announcementTitle");
 const announcementTextInput = $("#announcementText");
 const announcementMessage = $("#announcementMessage");
 const announcementList = $("#announcementList");
+const podcastTitleInput = $("#podcastTitle");
+const podcastFileInput = $("#podcastFile");
+const addPodcastButton = $("#addPodcastBtn");
+const podcastMessage = $("#podcastMessage");
+const podcastList = $("#podcastList");
 
 function showMessage(text, type = "") {
   message.textContent = text;
   message.className = `notice ${type}`.trim();
-}
-
-function isAdminUser(user) {
-  return user?.app_metadata?.role === "admin";
 }
 
 function showAccessMessage(text, type = "") {
@@ -75,11 +78,45 @@ function showAccessMessage(text, type = "") {
 }
 
 function closeSettings() {
+  adminCode = "";
+  adminCodeInput.value = "";
   accessPanel.classList.remove("hidden");
   settingsPanel.classList.add("hidden");
   settingsPanel.setAttribute("aria-hidden", "true");
   contentPanel.classList.add("hidden");
   contentPanel.setAttribute("aria-hidden", "true");
+}
+
+async function callAdminRpc(action, payload = {}) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase || !adminCode) {
+    throw new Error("Introduce de nuevo el código de administrador.");
+  }
+
+  let data;
+  let error;
+  try {
+    ({ data, error } = await supabase.rpc("admin_action", {
+      p_code: adminCode,
+      p_action: action,
+      p_payload: payload
+    }));
+  } catch {
+    throw new Error("No se pudo conectar con Supabase. Comprueba la conexión e inténtalo de nuevo.");
+  }
+
+  if (error) {
+    if (error.message.includes("Invalid admin code")) {
+      throw new Error("Código incorrecto.");
+    }
+    if (error.message.includes("Admin code is not configured")) {
+      throw new Error("El código de administrador aún no está configurado en Supabase.");
+    }
+    throw new Error("No se pudo completar la operación. Comprueba que ejecutaste el SQL actualizado en Supabase.");
+  }
+
+  return data;
 }
 
 function escapeText(value) {
@@ -188,15 +225,23 @@ async function loadOrMigrateCollection(tableName, storageKey) {
     return data;
   }
 
-  const { data: migratedItems, error: migrationError } = await supabase
-    .from(tableName)
-    .insert(itemsToMigrate)
-    .select();
-
-  if (migrationError || !Array.isArray(migratedItems)) {
-    console.warn(`No se pudo migrar el contenido local de ${tableName}:`, migrationError);
+  let migratedItems;
+  try {
+    migratedItems = await callAdminRpc("migrate_collection", {
+      table: tableName,
+      items: itemsToMigrate
+    });
+  } catch (error) {
+    console.warn(`No se pudo migrar el contenido local de ${tableName}:`, error);
     const messageElement = tableName === "radio_events" ? eventMessage : announcementMessage;
     messageElement.textContent = "No se pudo importar el contenido local a Supabase.";
+    messageElement.className = "notice error";
+    return data;
+  }
+
+  if (!Array.isArray(migratedItems)) {
+    const messageElement = tableName === "radio_events" ? eventMessage : announcementMessage;
+    messageElement.textContent = "Supabase devolvió una respuesta no válida al importar el contenido.";
     messageElement.className = "notice error";
     return data;
   }
@@ -278,10 +323,13 @@ async function loadStoredContent() {
   if (!getSupabaseClient()) {
     renderAdminEvents([]);
     renderAdminAnnouncements([]);
+    renderAdminPodcasts([]);
     eventMessage.textContent = "No hay conexión con Supabase; los cambios no se pueden compartir.";
     eventMessage.className = "notice error";
     announcementMessage.textContent = eventMessage.textContent;
     announcementMessage.className = "notice error";
+    podcastMessage.textContent = eventMessage.textContent;
+    podcastMessage.className = "notice error";
     return;
   }
 
@@ -290,6 +338,67 @@ async function loadStoredContent() {
 
   renderAdminEvents(events);
   renderAdminAnnouncements(announcements);
+  await loadAdminPodcasts();
+}
+
+function renderAdminPodcasts(podcasts = DEFAULT_PODCASTS) {
+  if (!podcastList) return;
+
+  if (!podcasts.length) {
+    podcastList.innerHTML = "<p class=\"empty-state\">No hay podcasts publicados.</p>";
+    return;
+  }
+
+  podcastList.innerHTML = podcasts
+    .map((podcast) => `
+      <div class="admin-item">
+        <div>
+          <strong>${escapeText(podcast.title)}</strong>
+          <small>${podcast.media_type === "video/mp4" ? "Vídeo MP4" : "Audio MP3"}</small>
+        </div>
+        <button type="button" class="danger-button" data-delete-podcast="${escapeText(podcast.id)}">Eliminar</button>
+      </div>
+    `)
+    .join("");
+}
+
+async function loadAdminPodcasts() {
+  const { data, error } = await getSupabaseClient()
+    .from("radio_podcasts")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    renderAdminPodcasts([]);
+    podcastMessage.textContent = "No se pudieron cargar los podcasts. Comprueba que ejecutaste el SQL actualizado en Supabase.";
+    podcastMessage.className = "notice error";
+    return;
+  }
+
+  renderAdminPodcasts(Array.isArray(data) ? data : []);
+}
+
+async function callPodcastFunction(action, payload = {}) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !adminCode) {
+    throw new Error("Introduce de nuevo el código de administrador.");
+  }
+
+  const { data, error } = await supabase.functions.invoke("podcast-media", {
+    body: { action, code: adminCode, ...payload }
+  });
+
+  if (error) {
+    if (error.context instanceof Response) {
+      const response = await error.context.json();
+      if (typeof response.error === "string") {
+        throw new Error(response.error);
+      }
+    }
+    throw new Error(error.message || "No se pudo completar la operación de archivos.");
+  }
+
+  return data;
 }
 
 function notifyContentRefresh() {
@@ -309,80 +418,32 @@ function openSettings() {
 accessForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  const supabase = getSupabaseClient();
-
-  if (!supabase) {
-    showAccessMessage("No hay conexión con Supabase; no se puede iniciar sesión.", "error");
+  if (!getSupabaseClient()) {
+    showAccessMessage("No hay conexión con Supabase; no se puede validar el código.", "error");
     return;
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: adminEmailInput.value.trim(),
-    password: adminPasswordInput.value
-  });
-
-  if (error) {
-    showAccessMessage("No se pudo iniciar sesión. Comprueba el correo y la contraseña.", "error");
+  adminCode = adminCodeInput.value;
+  try {
+    await callAdminRpc("verify");
+  } catch (error) {
+    adminCode = "";
+    showAccessMessage(error.message || "Código incorrecto o servicio no disponible.", "error");
     return;
   }
 
-  if (!isAdminUser(data.user)) {
-    await supabase.auth.signOut();
-    showAccessMessage("Esta cuenta no tiene permisos de administrador.", "error");
-    return;
-  }
-
-  adminPasswordInput.value = "";
+  adminCodeInput.value = "";
   showAccessMessage("");
   openSettings();
 });
 
 signOutButton.addEventListener("click", async () => {
-  const supabase = getSupabaseClient();
-
-  if (!supabase) {
-    showMessage("No se pudo conectar con Supabase para cerrar sesión.", "error");
-    return;
-  }
-
-  const { error } = await supabase.auth.signOut();
-
-  if (error) {
-    showMessage("No se pudo cerrar la sesión.", "error");
-    return;
-  }
-
   closeSettings();
-  adminPasswordInput.value = "";
+  showAccessMessage("Sesión cerrada.", "success");
 });
 
-const supabase = getSupabaseClient();
-
-if (!supabase) {
-  showAccessMessage("Configura la conexión con Supabase para acceder al panel.", "error");
-} else {
-  supabase.auth.onAuthStateChange((event) => {
-    if (event === "SIGNED_OUT") {
-      closeSettings();
-    }
-  });
-
-  supabase.auth.getSession().then(({ data, error }) => {
-    if (error) {
-      showAccessMessage("No se pudo comprobar la sesión de administrador.", "error");
-      return;
-    }
-
-    if (isAdminUser(data.session?.user)) {
-      openSettings();
-      return;
-    }
-
-    if (data.session) {
-      supabase.auth.signOut();
-      showAccessMessage("Esta cuenta no tiene permisos de administrador.", "error");
-    }
-  });
+if (!getSupabaseClient()) {
+  showAccessMessage("Configura la conexión con Supabase para validar el código.", "error");
 }
 
 async function loadSettings() {
@@ -423,17 +484,10 @@ saveButton.addEventListener("click", async () => {
     updated_at: new Date().toISOString()
   };
 
-  const supabase = getSupabaseClient();
-
-  if (!supabase) {
-    showMessage("No hay conexión con Supabase; la configuración no se guardó.", "error");
-    return;
-  }
-
-  const { error } = await supabase.from("radio_config").update(config).eq("id", 1);
-
-  if (error) {
-    showMessage("No se pudo guardar la configuración en Supabase.", "error");
+  try {
+    await callAdminRpc("save_config", { config });
+  } catch (error) {
+    showMessage(error.message || "No se pudo guardar la configuración en Supabase.", "error");
     return;
   }
 
@@ -464,18 +518,10 @@ document.getElementById("addEventBtn").addEventListener("click", async () => {
     created_at: new Date().toISOString()
   };
 
-  const supabase = getSupabaseClient();
-
-  if (!supabase) {
-    eventMessage.textContent = "No hay conexión con Supabase; el evento no se guardó.";
-    eventMessage.className = "notice error";
-    return;
-  }
-
-  const { error } = await supabase.from("radio_events").insert(payload);
-
-  if (error) {
-    eventMessage.textContent = "No se pudo guardar el evento en Supabase.";
+  try {
+    await callAdminRpc("insert_event", { event: payload });
+  } catch (error) {
+    eventMessage.textContent = error.message || "No se pudo guardar el evento en Supabase.";
     eventMessage.className = "notice error";
     return;
   }
@@ -505,18 +551,10 @@ document.getElementById("addAnnouncementBtn").addEventListener("click", async ()
     created_at: new Date().toISOString()
   };
 
-  const supabase = getSupabaseClient();
-
-  if (!supabase) {
-    announcementMessage.textContent = "No hay conexión con Supabase; el anuncio no se publicó.";
-    announcementMessage.className = "notice error";
-    return;
-  }
-
-  const { error } = await supabase.from("radio_announcements").insert(payload);
-
-  if (error) {
-    announcementMessage.textContent = "No se pudo guardar el anuncio en Supabase.";
+  try {
+    await callAdminRpc("insert_announcement", { announcement: payload });
+  } catch (error) {
+    announcementMessage.textContent = error.message || "No se pudo guardar el anuncio en Supabase.";
     announcementMessage.className = "notice error";
     return;
   }
@@ -529,24 +567,93 @@ document.getElementById("addAnnouncementBtn").addEventListener("click", async ()
   announcementTextInput.value = "";
 });
 
+document.getElementById("addPodcastBtn").addEventListener("click", async () => {
+  const title = podcastTitleInput.value.trim();
+  const file = podcastFileInput.files[0];
+
+  if (!title || !file) {
+    podcastMessage.textContent = "Completa el título y selecciona un archivo MP3 o MP4.";
+    podcastMessage.className = "notice error";
+    return;
+  }
+  if (title.length > 120) {
+    podcastMessage.textContent = "El título no puede superar los 120 caracteres.";
+    podcastMessage.className = "notice error";
+    return;
+  }
+  if (file.size > MAX_PODCAST_SIZE) {
+    podcastMessage.textContent = "El archivo supera el tamaño máximo de 100 MB.";
+    podcastMessage.className = "notice error";
+    return;
+  }
+
+  const extension = file.name.split(".").pop().toLowerCase();
+  const mediaType = extension === "mp3" ? "audio/mpeg" : extension === "mp4" ? "video/mp4" : "";
+  if (!mediaType || (file.type && file.type !== mediaType)) {
+    podcastMessage.textContent = "El archivo debe ser un MP3 de audio o un MP4 de vídeo.";
+    podcastMessage.className = "notice error";
+    return;
+  }
+
+  addPodcastButton.disabled = true;
+  podcastMessage.textContent = "Subiendo y publicando el archivo…";
+  podcastMessage.className = "notice";
+
+  let mediaPath;
+  try {
+    const uploadTicket = await callPodcastFunction("create-upload", { mediaType });
+    mediaPath = uploadTicket.path;
+
+    const { error: uploadError } = await getSupabaseClient()
+      .storage
+      .from("radio-podcasts")
+      .uploadToSignedUrl(mediaPath, uploadTicket.token, file, {
+        contentType: mediaType,
+        upsert: false
+      });
+    if (uploadError) {
+      throw new Error("No se pudo subir el archivo a Supabase Storage.");
+    }
+
+    await callAdminRpc("insert_podcast", {
+      podcast: { title, media_path: mediaPath, media_type: mediaType }
+    });
+  } catch (error) {
+    if (mediaPath) {
+      try {
+        await callPodcastFunction("cleanup", { mediaPath });
+      } catch (cleanupError) {
+        console.error("No se pudo limpiar el archivo de podcast tras un error:", cleanupError);
+        podcastMessage.textContent = `${error.message || "No se pudo publicar el podcast."} El archivo temporal no se pudo eliminar.`;
+        podcastMessage.className = "notice error";
+        return;
+      }
+    }
+    podcastMessage.textContent = error.message || "No se pudo publicar el podcast.";
+    podcastMessage.className = "notice error";
+    return;
+  } finally {
+    addPodcastButton.disabled = false;
+  }
+
+  podcastTitleInput.value = "";
+  podcastFileInput.value = "";
+  podcastMessage.textContent = "Podcast publicado correctamente.";
+  podcastMessage.className = "notice success";
+  await loadAdminPodcasts();
+  notifyContentRefresh();
+});
+
 eventList.addEventListener("click", async (event) => {
   const deleteButton = event.target.closest("[data-delete-event]");
 
   if (!deleteButton) return;
 
   const id = deleteButton.dataset.deleteEvent;
-  const supabase = getSupabaseClient();
-
-  if (!supabase) {
-    eventMessage.textContent = "No hay conexión con Supabase; el evento no se eliminó.";
-    eventMessage.className = "notice error";
-    return;
-  }
-
-  const { error } = await supabase.from("radio_events").delete().eq("id", id);
-
-  if (error) {
-    eventMessage.textContent = "No se pudo borrar el evento en Supabase.";
+  try {
+    await callAdminRpc("delete_event", { id });
+  } catch (error) {
+    eventMessage.textContent = error.message || "No se pudo borrar el evento en Supabase.";
     eventMessage.className = "notice error";
     return;
   }
@@ -563,18 +670,10 @@ announcementList.addEventListener("click", async (event) => {
   if (!deleteButton) return;
 
   const id = deleteButton.dataset.deleteAnnouncement;
-  const supabase = getSupabaseClient();
-
-  if (!supabase) {
-    announcementMessage.textContent = "No hay conexión con Supabase; el anuncio no se eliminó.";
-    announcementMessage.className = "notice error";
-    return;
-  }
-
-  const { error } = await supabase.from("radio_announcements").delete().eq("id", id);
-
-  if (error) {
-    announcementMessage.textContent = "No se pudo borrar el anuncio en Supabase.";
+  try {
+    await callAdminRpc("delete_announcement", { id });
+  } catch (error) {
+    announcementMessage.textContent = error.message || "No se pudo borrar el anuncio en Supabase.";
     announcementMessage.className = "notice error";
     return;
   }
@@ -583,6 +682,26 @@ announcementList.addEventListener("click", async (event) => {
   notifyContentRefresh();
   announcementMessage.textContent = "Anuncio eliminado.";
   announcementMessage.className = "notice success";
+});
+
+podcastList.addEventListener("click", async (event) => {
+  const deleteButton = event.target.closest("[data-delete-podcast]");
+
+  if (!deleteButton) return;
+
+  try {
+    await callPodcastFunction("delete", { id: deleteButton.dataset.deletePodcast });
+  } catch (error) {
+    await loadAdminPodcasts();
+    podcastMessage.textContent = error.message || "No se pudo eliminar el podcast.";
+    podcastMessage.className = "notice error";
+    return;
+  }
+
+  await loadAdminPodcasts();
+  notifyContentRefresh();
+  podcastMessage.textContent = "Podcast eliminado.";
+  podcastMessage.className = "notice success";
 });
 
 function handleAdminRefresh(event) {

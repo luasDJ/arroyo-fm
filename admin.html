@@ -30,17 +30,13 @@
 
     <section id="accessPanel" class="admin-panel access-panel">
       <h3>Acceso restringido</h3>
-      <p class="notice">Inicia sesión con la cuenta de administrador.</p>
+      <p class="notice">Introduce el código de administrador para continuar.</p>
       <form id="accessForm">
         <div class="form-field">
-          <label for="adminEmail">Correo electrónico</label>
-          <input id="adminEmail" type="email" autocomplete="username" required>
+          <label for="adminCode">Código de acceso</label>
+          <input id="adminCode" type="password" autocomplete="current-password" required>
         </div>
-        <div class="form-field">
-          <label for="adminPassword">Contraseña</label>
-          <input id="adminPassword" type="password" autocomplete="current-password" required>
-        </div>
-        <button type="submit">Iniciar sesión</button>
+        <button type="submit">Acceder al panel</button>
       </form>
       <p id="accessMessage" class="notice"></p>
     </section>
@@ -131,6 +127,26 @@
 
           <div id="announcementList" class="admin-list" aria-live="polite"></div>
         </div>
+
+        <div class="content-card content-card-wide">
+          <h4>Podcast y entrevistas</h4>
+
+          <div class="form-field">
+            <label for="podcastTitle">Título</label>
+            <input id="podcastTitle" type="text" maxlength="120" placeholder="Título del podcast o entrevista">
+          </div>
+
+          <div class="form-field">
+            <label for="podcastFile">Archivo MP3 o MP4</label>
+            <input id="podcastFile" type="file" accept=".mp3,.mp4,audio/mpeg,video/mp4">
+            <p class="notice">Tamaño máximo: 100 MB.</p>
+          </div>
+
+          <button id="addPodcastBtn" type="button">Publicar podcast</button>
+          <p id="podcastMessage" class="notice" aria-live="polite"></p>
+
+          <div id="podcastList" class="admin-list" aria-live="polite"></div>
+        </div>
       </div>
     </section>
 
@@ -141,6 +157,6 @@
     window.SUPABASE_ANON_KEY = "sb_publishable_h2CWl2ydWgI3safRUcYmxg_ffIDzs3h";
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="admin.js?v=auth-rls-1"></script>
+  <script src="admin.js?v=podcasts-1"></script>
 </body>
 </html>

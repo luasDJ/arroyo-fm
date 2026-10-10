@@ -55,6 +55,7 @@ a { color: inherit; }
 .signal-ring-small { inset: 29%; border-color: rgba(85, 178, 255, .5); }
 .signal-mark { font: 700 2.4rem "Space Grotesk", sans-serif; letter-spacing: .12em; }
 .player-section { padding: 70px 0 40px; }
+.podcast-section { padding: 40px 0 70px; }
 .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
 .compact-heading { margin-bottom: 12px; }
 .section-heading h2 { margin: 8px 0 0; font: 600 2rem/1.1 "Space Grotesk", sans-serif; }
@@ -64,6 +65,11 @@ a { color: inherit; }
 .content-panel { padding: 24px; }
 .info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding-bottom: 90px; }
 .announcement-list, .events-list, .admin-list { display: grid; gap: 16px; }
+.podcast-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 18px; }
+.podcast-item { display: grid; align-content: start; gap: 14px; padding: 20px; border: 1px solid rgba(145, 161, 183, .14); border-radius: 14px; background: rgba(13, 20, 33, .88); }
+.podcast-item h3 { margin: 0; font-size: 1.08rem; }
+.podcast-player { display: block; width: 100%; }
+.podcast-player { max-height: 420px; border-radius: 10px; background: #080d16; }
 .announcement-item, .event-item, .admin-item { display: grid; gap: 12px; padding: 18px; border: 1px solid rgba(145, 161, 183, .14); border-radius: 14px; background: rgba(8, 13, 22, .8); }
 .announcement-item h3, .event-item h3 { margin: 0; font-size: 1.06rem; }
 .announcement-item p, .event-item p, .admin-item p { margin: 0; color: var(--muted); }
@@ -107,12 +113,16 @@ button:hover { background: #3ca3ff; transform: translateY(-1px); }
 .notice { font-size: .85rem; line-height: 1.6; }
 .admin-panel > .notice { margin: 8px 0 0; }
 #saveMessage, #eventMessage, #announcementMessage { min-height: 1.5em; margin: 16px 0 0; }
+#podcastMessage { min-height: 1.5em; margin: 16px 0 0; }
 #saveMessage.success, #eventMessage.success, #announcementMessage.success { color: #7de7b6; }
 #saveMessage.error, #eventMessage.error, #announcementMessage.error { color: #ff9a9a; }
+#podcastMessage.success { color: #7de7b6; }
+#podcastMessage.error { color: #ff9a9a; }
 #accessMessage.error { color: #ff9a9a; }
 .content-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 22px; }
 .content-card { display: grid; align-content: start; gap: 8px; padding: 20px; border: 1px solid rgba(145, 161, 183, .12); border-radius: 14px; background: rgba(8, 13, 22, .58); }
 .content-card h4 { margin: 0; font: 600 1.06rem "Space Grotesk", sans-serif; }
+.content-card-wide { grid-column: 1 / -1; }
 .admin-item { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
 .admin-item strong { font-size: .96rem; }
 .admin-item small { display: block; margin-top: 6px; color: var(--accent-bright); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; }

@@ -28,6 +28,7 @@ function isSupabaseConfigured() {
 
 const DEFAULT_EVENTS = [];
 const DEFAULT_ANNOUNCEMENTS = [];
+const DEFAULT_PODCASTS = [];
 
 const casterEmbed = `
 <div data-type="newStreamPlayer"
@@ -191,9 +192,52 @@ async function renderCalendar() {
     .join("");
 }
 
+async function renderPodcasts() {
+  const list = document.querySelector("#podcastsList");
+
+  if (!list) return;
+
+  const podcasts = isSupabaseConfigured()
+    ? await fetchRemoteCollection("radio_podcasts", DEFAULT_PODCASTS)
+    : DEFAULT_PODCASTS;
+
+  if (!podcasts.length) {
+    list.innerHTML = "<p class=\"empty-state\">Todavía no hay podcasts ni entrevistas publicados.</p>";
+    return;
+  }
+
+  const supabase = getSupabaseClient();
+  list.innerHTML = podcasts
+    .map((podcast) => {
+      const isVideo = podcast.media_type === "video/mp4";
+      const mediaUrl = supabase.storage
+        .from("radio-podcasts")
+        .getPublicUrl(podcast.media_path).data.publicUrl;
+      const player = isVideo
+        ? `<video class="podcast-player" controls preload="metadata" playsinline>
+             <source src="${escapeAttr(mediaUrl)}" type="video/mp4">
+             Tu navegador no puede reproducir este vídeo.
+           </video>`
+        : `<audio class="podcast-player" controls preload="metadata">
+             <source src="${escapeAttr(mediaUrl)}" type="audio/mpeg">
+             Tu navegador no puede reproducir este audio.
+           </audio>`;
+
+      return `
+        <article class="podcast-item">
+          <span class="announcement-tag">${isVideo ? "Entrevista en vídeo" : "Podcast"}</span>
+          <h3>${escapeText(podcast.title || "Podcast")}</h3>
+          ${player}
+        </article>
+      `;
+    })
+    .join("");
+}
+
 async function refreshDynamicContent() {
   await renderAnnouncements();
   await renderCalendar();
+  await renderPodcasts();
 }
 
 async function renderPlayer() {
